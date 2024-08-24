@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "python-poc"
+version = "0.1.0"
+description = "Simple POC for ocr-conclave"
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+jupyter = "^1.0.0"
+python-dotenv = "^1.0.1"
+google-cloud-documentai = "^2.31.0"
+notebook = "^7.2.1"
+ipynbname = "^2024.1.0.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
