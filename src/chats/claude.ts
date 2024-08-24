@@ -27,6 +27,7 @@ export class ClaudeChat implements ConclaveMember {
   async sendMessage(userMessage: string, instructions: string) {
     try {
       const response = await this.anthropic.messages.create({
+        ...this.config.options,
         model: this.config.model,
         max_tokens: Number(this.config.options.max_tokens ?? 1000),
         system: instructions,

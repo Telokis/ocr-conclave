@@ -24,6 +24,7 @@ export class GeminiChat implements ConclaveMember {
   async sendMessage(userMessage: string, instructions: string) {
     try {
       const geminiModel = this.genAI.getGenerativeModel({
+        ...this.config.options,
         model: this.config.model,
         systemInstruction: instructions,
       });

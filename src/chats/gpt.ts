@@ -26,6 +26,7 @@ export class GPTChat implements ConclaveMember {
   async sendMessage(userMessage: string, instructions: string) {
     try {
       const response = await this.openai.chat.completions.create({
+        ...this.config.options,
         model: this.config.model,
         max_tokens: Number(this.config.options.max_tokens ?? 1000),
         messages: [

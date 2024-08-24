@@ -51,6 +51,6 @@ export class Cache {
       (page.image as unknown as string) = imageFileName;
     }
 
-    writeFileSync(cachePath, JSON.stringify(data, null, 1));
+    writeFileSync(cachePath, JSON.stringify(data, null, 1).replace(/^ +/gm, ""));
   }
 }

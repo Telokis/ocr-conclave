@@ -17,8 +17,11 @@ stagesSettings:
         - Supprime les numéros de ligne, de page ou tout autre nombre isolé qui n'apporte pas de valeur au texte.
         - Regroupe les balises [i] pour les didascalies en un seul bloc lorsqu'elles sont fragmentées. Assure-toi que toutes les didascalies sont bien en italique.
         - Il peut y avoir de petites parties de répliques en italique pour emphase, comme le mot "signor". Laisse ces italiques en place.
-        - Retire les sauts de ligne inutiles, mais conserve ceux qui séparent les scènes, les répliques ou les blocs de didascalies.
+        - Retire les sauts de ligne inutiles.
+        - Une ligne vide doit séparer les scènes, les répliques et/ou les blocs de didascalies.
         - Certaines répliques sont versifiées, d'autres en prose. Identifie-les et applique le formatage suivant selon le cas : "[char]<personnage>[/char]\n<Réplique en vers>" pour les vers, et "[char]<personnage>[/char] - <Réplique en prose>" pour la prose.
+        - Pour identifier les répliques en vers, elles sont toujours précédées par le nom de personnage sur une ligne dédiée au lieu d'être sur la même ligne, sauf erreur OCR. De plus, une même scène contient généralement uniquement des vers ou uniquement de la prose (mais pas toujours).
+        - L'Acte I scène 1 ne contient pas de prose.
         - Pour les répliques en prose, supprime tout saut de ligne ou retour à la ligne à l'intérieur de la réplique.
         - Pour les répliques en prose, assure-toi qu'aucun mot ne soit coupé en raison du formatage original. Par exemple "cheva-\nlier" devrait devenir "chevalier".
         - Pour les répliques en vers, chaque vers doit commencer par une majuscule et être sur une ligne dédiée.
@@ -30,7 +33,6 @@ stagesSettings:
         - Maintiens une cohérence dans le formatage tout au long du texte.
         - Pour la ponctuation, suis ces règles :
           * Place un espace avant les ponctuations doubles (; : ? !) et après toutes les ponctuations.
-          * En vers, respecte scrupuleusement la ponctuation originale.
         - Si un nom de personnage est coupé ou mal orthographié, corrige-le et assure-toi qu'il est complet et correct.
         - Pour les transitions de scène et d'acte, utilise le format : [title]ACTE I[/title] ou [title]SCÈNE 2[/title], sur une ligne séparée.
         - Conserve les abréviations telles qu'elles apparaissent dans le texte original.
@@ -100,7 +102,7 @@ stagesSettings:
       }
 
       Assurez-vous que :
-      1. Votre réponse est un objet JSON valide.
+      1. Votre réponse entière est un objet JSON valide.
       2. Le champ "status" est soit "OK" soit "KO".
       3. Le champ "correctedText" n'est présent que si le status est "KO".
       4. Le champ "human_readable" contient toujours une explication détaillée de votre décision, qu'il y ait eu des corrections ou non.
@@ -119,10 +121,10 @@ stagesSettings:
       - Votre tâche est d'évaluer ces propositions et de voter pour les meilleures.
 
       Instructions de vote :
-      1. Vous recevrez N+1 versions du texte, où N est le nombre d'assistants IA ayant proposé des corrections.
-      2. La version 0 est toujours le texte OCR original sans correction.
-      3. Les versions 1 à N sont les propositions des assistants IA.
-      4. Vous disposerez de N+2 points à distribuer entre ces versions.
+      1. Vous recevrez plusieurs versions du texte.
+      2. Vous devez analyser et classer les différentes versions les unes par rapport aux autres.
+      3. Vous disposez de {{VOTING_POINTS}} points à distribuer entre ces versions.
+      4. Vous devez éviter les égalités de points.
       5. Vous devez attribuer tous vos points. Vous pouvez les répartir comme bon vous semble, y compris donner tous les points à une seule version si vous la jugez nettement supérieure.
       6. Basez votre évaluation sur les critères suivants :
         - Fidélité au texte original (sauf erreurs évidentes)
@@ -154,16 +156,17 @@ stagesSettings:
       {
         "votes": {
           "0": 0,
-          "1": 3,
-          "2": 1
+          "1": {{VOTING_POINTS}},
+          "2": 0
         },
-        "human_readable": "La version 1 est la plus fidèle au texte original tout en corrigeant efficacement les erreurs d'OCR. La version 2 a bien amélioré le formatage mais a introduit quelques erreurs mineures. La version originale (0) contient trop d'erreurs pour être considérée comme la meilleure option."
+        "human_readable": "La version 1 est la plus fidèle au texte original tout en corrigeant efficacement les erreurs d'OCR. La version 2 a raté des erreurs OCR majeures. La version 0 contient trop d'erreurs pour être considérée comme la meilleure option."
       }
 
       Assurez-vous que :
-      1. La somme des points attribués est exactement égale à N+2.
+      1. La somme des points attribués est exactement égale à {{VOTING_POINTS}}.
       2. Chaque version (de 0 à N) a une entrée dans l'objet "votes".
       3. La justification dans "human_readable" est détaillée et explique clairement votre raisonnement.
+      4. Aucune version n'a le même nombre de points qu'une autre. Une hierarchie doit être évidente.
 
       Ci-dessous, les instructions de nettoyage de texte pour référence.
       Ces instructions vous aideront à comprendre les critères spécifiques utilisés pour nettoyer et formater le texte.
@@ -178,13 +181,18 @@ conclave:
       max_tokens: 4096
 
   - type: "gpt"
-    name: "GPT 4o Mini"
-    model: gpt-4o-mini
+    name: "GPT 4o"
+    model: gpt-4o-2024-08-06
     apiKeyEnv: GPT_API_KEY
     options:
       max_tokens: 4096
+      response_format:
+        type: "json_object"
 
   - type: "gemini"
     name: "Gemini 1.5 Flash"
     model: gemini-1.5-flash
     apiKeyEnv: GEMINI_API_KEY
+    options:
+      generationConfig:
+        responseMimeType: "application/json"

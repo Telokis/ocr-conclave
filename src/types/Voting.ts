@@ -1,4 +1,4 @@
-export interface VoteResponse {
+export interface VotingResponse {
   /**
    * The votes that were cast.
    * Must contain as many elements as there are candidates.
