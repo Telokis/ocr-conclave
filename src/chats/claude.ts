@@ -1,30 +1,45 @@
 import { Anthropic } from "@anthropic-ai/sdk";
 import type { TextBlock } from "@anthropic-ai/sdk/resources";
+import { ConclaveMemberConfig } from "../config";
+import { ConclaveMember } from "../types/ConclaveMember";
 
-export class ClaudeChat {
-    private anthropic: Anthropic;
+export class ClaudeChat implements ConclaveMember {
+  private anthropic: Anthropic;
+  private config: ConclaveMemberConfig;
 
-    constructor(apiKey: string) {
-        this.anthropic = new Anthropic({
-            apiKey: apiKey,
-        });
+  constructor(config: ConclaveMemberConfig) {
+    this.config = config;
+    const apiKey = process.env[this.config.apiKeyEnv];
+
+    if (!apiKey) {
+      throw new Error("Environment variable not found: " + this.config.apiKeyEnv);
     }
 
-    async sendMessage(
-        message: string,
-        model: string = "claude-3-5-sonnet-20240620",
-    ): Promise<string> {
-        try {
-            const response = await this.anthropic.messages.create({
-                model: model,
-                max_tokens: 1000,
-                messages: [{ role: "user", content: message }],
-            });
+    this.anthropic = new Anthropic({
+      apiKey: apiKey,
+    });
+  }
 
-            return (response.content[0] as TextBlock).text;
-        } catch (error) {
-            console.error("Error sending message to Claude:", error);
-            throw error;
-        }
+  name() {
+    return this.config.name;
+  }
+
+  async sendMessage(userMessage: string, instructions: string) {
+    try {
+      const response = await this.anthropic.messages.create({
+        model: this.config.model,
+        max_tokens: Number(this.config.options.max_tokens ?? 1000),
+        system: instructions,
+        messages: [{ role: "user", content: userMessage }],
+      });
+
+      return {
+        text: (response.content[0] as TextBlock).text,
+        raw: response,
+      };
+    } catch (error) {
+      console.error("Error sending message to Claude:", error);
+      throw error;
     }
+  }
 }

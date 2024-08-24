@@ -13,10 +13,14 @@
     "@anthropic-ai/sdk": "^0.27.0",
     "@google-cloud/documentai": "^8.9.0",
     "@google/generative-ai": "^0.17.1",
-    "@types/mime-types": "^2.1.4",
     "dotenv": "^16.4.5",
     "mime-types": "^2.1.35",
     "openai": "^4.56.0",
+    "sharp": "^0.33.5",
     "yaml": "^2.5.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.7",
+    "@types/mime-types": "^2.1.4"
   }
 }

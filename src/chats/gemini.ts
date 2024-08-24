@@ -1,22 +1,47 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { ConclaveMemberConfig } from "../config";
+import { ConclaveMember } from "../types/ConclaveMember";
 
-export class GeminiChat {
-    private genAI: GoogleGenerativeAI;
+export class GeminiChat implements ConclaveMember {
+  private genAI: GoogleGenerativeAI;
+  private config: ConclaveMemberConfig;
 
-    constructor(apiKey: string) {
-        this.genAI = new GoogleGenerativeAI(apiKey);
+  constructor(config: ConclaveMemberConfig) {
+    this.config = config;
+    const apiKey = process.env[this.config.apiKeyEnv];
+
+    if (!apiKey) {
+      throw new Error("Environment variable not found: " + this.config.apiKeyEnv);
     }
 
-    async sendMessage(message: string, model: string = "gemini-pro"): Promise<string> {
-        try {
-            const geminiModel = this.genAI.getGenerativeModel({ model: model });
+    this.genAI = new GoogleGenerativeAI(apiKey);
+  }
 
-            const result = await geminiModel.generateContent(message);
-            const response = result.response;
-            return response.text();
-        } catch (error) {
-            console.error("Error sending message to Gemini:", error);
-            throw error;
-        }
+  name() {
+    return this.config.name;
+  }
+
+  async sendMessage(userMessage: string, instructions: string) {
+    try {
+      const geminiModel = this.genAI.getGenerativeModel({
+        model: this.config.model,
+        systemInstruction: instructions,
+      });
+
+      const result = await geminiModel.generateContent(userMessage);
+      const response = result.response;
+
+      return {
+        text: response.text(),
+        raw: {
+          candidates: response.candidates ?? null,
+          promptFeedback: response.promptFeedback ?? null,
+          usageMetadata: response.usageMetadata ?? null,
+        },
+      };
+    } catch (error) {
+      console.error("Error sending message to Gemini:", error);
+      throw error;
     }
+  }
 }

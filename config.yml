@@ -1,0 +1,190 @@
+input:
+  root: "{{ROOT_DIR}}/data/Nuit des rois"
+  glob: "**/*.jpg"
+
+cache:
+  root_dir: "{{ROOT_DIR}}/data/cache"
+
+stagesSettings:
+  vars:
+    PREVIOUS_PAGE_EXAMPLE: |
+      La précédente page correctement formatée était la suivante:
+      {{PREVIOUS_PAGE}}
+    BASIC_TEXT_CLEANUP_INSTRUCTIONS: |
+      L'utilisateur va te fournir un texte qui est le résultat OCR d'une image. Les images sont des pages de La nuit des rois de Shakespeare en français.
+      Tu dois vérifier le texte et t'assurer qu'il fait sens et est correctement formaté et retranscrit. Le texte a été post-processed pour ajouter quelques balises bbcode utiles au formatage.
+      Consignes:
+        - Supprime les numéros de ligne, de page ou tout autre nombre isolé qui n'apporte pas de valeur au texte.
+        - Regroupe les balises [i] pour les didascalies en un seul bloc lorsqu'elles sont fragmentées. Assure-toi que toutes les didascalies sont bien en italique.
+        - Il peut y avoir de petites parties de répliques en italique pour emphase, comme le mot "signor". Laisse ces italiques en place.
+        - Retire les sauts de ligne inutiles, mais conserve ceux qui séparent les scènes, les répliques ou les blocs de didascalies.
+        - Certaines répliques sont versifiées, d'autres en prose. Identifie-les et applique le formatage suivant selon le cas : "[char]<personnage>[/char]\n<Réplique en vers>" pour les vers, et "[char]<personnage>[/char] - <Réplique en prose>" pour la prose.
+        - Pour les répliques en prose, supprime tout saut de ligne ou retour à la ligne à l'intérieur de la réplique.
+        - Pour les répliques en prose, assure-toi qu'aucun mot ne soit coupé en raison du formatage original. Par exemple "cheva-\nlier" devrait devenir "chevalier".
+        - Pour les répliques en vers, chaque vers doit commencer par une majuscule et être sur une ligne dédiée.
+        - Ne modifie pas le contenu des dialogues ou des didascalies, sauf pour corriger les balises mal placées ou manquantes.
+        - Assure-toi que le texte final est cohérent, facile à lire, sans balises superflues ou mal placées.
+        - Encadre les marqueurs de scène ou d'acte entre des balises [title].
+        - Encadre les marqueurs de personnage entre des balises [char].
+        - Les marqueurs de personnage doivent être entièrement en majuscules.
+        - Maintiens une cohérence dans le formatage tout au long du texte.
+        - Pour la ponctuation, suis ces règles :
+          * Place un espace avant les ponctuations doubles (; : ? !) et après toutes les ponctuations.
+          * En vers, respecte scrupuleusement la ponctuation originale.
+        - Si un nom de personnage est coupé ou mal orthographié, corrige-le et assure-toi qu'il est complet et correct.
+        - Pour les transitions de scène et d'acte, utilise le format : [title]ACTE I[/title] ou [title]SCÈNE 2[/title], sur une ligne séparée.
+        - Conserve les abréviations telles qu'elles apparaissent dans le texte original.
+        - Si des caractères spéciaux ou symboles apparaissent, vérifie leur pertinence et corrige ou supprime si nécessaire.
+        - Le texte original peut contenir des annotations manuscrites qui doivent être supprimées.
+        - Le texte original contient parfois des annotations imprimées en bas de page pour donner des références historiques ; elles doivent être supprimées.
+        - Certaines pages sont un peu transparentes et le texte qui est derrière perturbe l'OCR.
+      Exemples de formatage :
+        1. Vers :
+           [char]VIOLA[/char]
+           Si je vous aime, hélas ! c'est malgré moi, seigneur ;
+           Vous m'avez fait venir pour vous parler d'Olivia.
+
+        2. Prose :
+           [char]MALVOLIO[/char] - Madame, le jeune gentilhomme de la comtesse Olivia est revenu ; j'aurais pu difficilement le renvoyer, il attend votre bon plaisir.
+
+        3. Didascalie :
+           [i]Il sort.[/i]
+
+        4. Transition de scène :
+           [title]ACTE II[/title]
+           [title]SCÈNE 1[/title]
+
+  textCleanup:
+    systemInstructions: |
+      {{BASIC_TEXT_CLEANUP_INSTRUCTIONS}}
+
+      Votre réponse doit être un objet JSON valide correspondant au type TypeScript TextCleanupResponse ci-dessous :
+        /** Received when the text is fine as-is. */
+        interface OkResponse {
+          /** Indicates that the original text is fine. */
+          status: "OK";
+
+          /** A human-readable explanation of your decision. */
+          human_readable: string;
+        }
+
+        /** Received when the text requires corrections. */
+        interface KoResponse {
+          /**
+          * Indicates that the original text requires corrections.
+          */
+          status: "KO";
+
+          /**
+          * The corrected text. This should be a corrected version of the original text.
+          */
+          correctedText: string;
+
+          /** A human-readable explanation of your decision. */
+          human_readable: string;
+        }
+
+        export type TextCleanupResponse = OkResponse | KoResponse;
+
+      Exemple de réponse valide si le texte est correct :
+      {
+        "status": "OK",
+        "human_readable": "Le texte est correctement formaté et ne nécessite aucune correction. Toutes les balises BBCode sont bien placées, la ponctuation est correcte, et le style est cohérent."
+      }
+
+      Exemple de réponse valide si le texte nécessite des corrections :
+      {
+        "status": "KO",
+        "correctedText": "[char]VIOLA[/char]\nSi je vous aime, hélas ! c'est malgré moi, seigneur ;\nVous m'avez fait venir pour vous parler d'Olivia.",
+        "human_readable": "Le texte original contenait des erreurs de formatage. J'ai corrigé les balises [char], ajouté les sauts de ligne nécessaires pour les vers, et vérifié la ponctuation. La version corrigée respecte maintenant toutes les règles de formatage spécifiées."
+      }
+
+      Assurez-vous que :
+      1. Votre réponse est un objet JSON valide.
+      2. Le champ "status" est soit "OK" soit "KO".
+      3. Le champ "correctedText" n'est présent que si le status est "KO".
+      4. Le champ "human_readable" contient toujours une explication détaillée de votre décision, qu'il y ait eu des corrections ou non.
+      5. Si des corrections sont apportées, le texte corrigé doit être intégral et correctement formaté.
+
+      N'ajoutez pas d'explications supplémentaires en dehors de l'objet JSON.
+
+      {{PREVIOUS_PAGE_EXAMPLE}}
+  voting:
+    systemInstructions: |
+      Vous participez à un processus de vote pour sélectionner la meilleure version d'un texte OCR nettoyé. Le texte original provient de "La nuit des rois" de Shakespeare en français.
+
+      Contexte :
+      - Le texte original a été extrait par OCR d'une image.
+      - Plusieurs assistants IA ont proposé des corrections selon des instructions spécifiques.
+      - Votre tâche est d'évaluer ces propositions et de voter pour les meilleures.
+
+      Instructions de vote :
+      1. Vous recevrez N+1 versions du texte, où N est le nombre d'assistants IA ayant proposé des corrections.
+      2. La version 0 est toujours le texte OCR original sans correction.
+      3. Les versions 1 à N sont les propositions des assistants IA.
+      4. Vous disposerez de N+2 points à distribuer entre ces versions.
+      5. Vous devez attribuer tous vos points. Vous pouvez les répartir comme bon vous semble, y compris donner tous les points à une seule version si vous la jugez nettement supérieure.
+      6. Basez votre évaluation sur les critères suivants :
+        - Fidélité au texte original (sauf erreurs évidentes)
+        - Correction des erreurs d'OCR
+        - Formatage approprié (utilisation correcte des balises BBCode)
+        - Cohérence du style et de la ponctuation
+        - Respect des règles spécifiques pour les vers et la prose
+
+      Processus de vote :
+      1. Lisez attentivement chaque version du texte.
+      2. Comparez-les en tenant compte des critères d'évaluation.
+      3. Attribuez vos points en fonction de la qualité relative de chaque version.
+
+      Votre réponse doit être un objet JSON valide correspondant à l'interface TypeScript suivante :
+
+      export interface VoteResponse {
+        /**
+        * The votes that were cast.
+        * Must contain as many elements as there are candidates.
+        * The key is the candidate's index and the number is the number of points they received.
+        */
+        votes: Record<string, number>;
+
+        /** A human readable string to justify your vote. */
+        human_readable: string;
+      }
+
+      Exemple de réponse valide :
+      {
+        "votes": {
+          "0": 0,
+          "1": 3,
+          "2": 1
+        },
+        "human_readable": "La version 1 est la plus fidèle au texte original tout en corrigeant efficacement les erreurs d'OCR. La version 2 a bien amélioré le formatage mais a introduit quelques erreurs mineures. La version originale (0) contient trop d'erreurs pour être considérée comme la meilleure option."
+      }
+
+      Assurez-vous que :
+      1. La somme des points attribués est exactement égale à N+2.
+      2. Chaque version (de 0 à N) a une entrée dans l'objet "votes".
+      3. La justification dans "human_readable" est détaillée et explique clairement votre raisonnement.
+
+      Ci-dessous, les instructions de nettoyage de texte pour référence.
+      Ces instructions vous aideront à comprendre les critères spécifiques utilisés pour nettoyer et formater le texte.
+      {{BASIC_TEXT_CLEANUP_INSTRUCTIONS}}
+
+conclave:
+  - type: "claude"
+    name: "Claude 3.5 Sonnet"
+    model: claude-3-5-sonnet-20240620
+    apiKeyEnv: CLAUDE_API_KEY
+    options:
+      max_tokens: 4096
+
+  - type: "gpt"
+    name: "GPT 4o Mini"
+    model: gpt-4o-mini
+    apiKeyEnv: GPT_API_KEY
+    options:
+      max_tokens: 4096
+
+  - type: "gemini"
+    name: "Gemini 1.5 Flash"
+    model: gemini-1.5-flash
+    apiKeyEnv: GEMINI_API_KEY
