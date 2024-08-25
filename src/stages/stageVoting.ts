@@ -1,5 +1,7 @@
 import Conclave from "../Conclave";
 import { getVotingInstructions } from "../getInstructions";
+import { fixMalformedJson } from "../json";
+import { Storage, Stage, ConclaveReponseWithJson, VotingStageData } from "../Storage";
 import { VotingResponse } from "../types/Voting";
 
 function prepareVotingPrompt(ocrResult: string, cleanupResults: string[]): string {
@@ -21,68 +23,97 @@ export async function stageVoting(
   conclave: Conclave,
   ocrResult: string,
   cleanupResults: string[],
+  storage: Storage,
   previousPage?: string,
 ): Promise<string> {
+  // Check if voting stage has already been completed
+  if (storage.hasReachedOrPassedStage(Stage.VOTING)) {
+    console.log("Voting stage already completed. Retrieving stored results.");
+    return storage.getData().votingStage!.selectedText;
+  }
+
   const totalVotePoints = 10;
   const instructions = getVotingInstructions(previousPage, totalVotePoints);
-
-  // Prepare the voting prompt
   const votingPrompt = prepareVotingPrompt(ocrResult, cleanupResults);
 
-  try {
-    const votingResults = await conclave.askMembers(votingPrompt, instructions);
+  let attempts = 0;
+  const maxAttempts = 3;
 
-    const totalVotes: Record<string, number> = {};
+  while (attempts < maxAttempts) {
+    attempts++;
+    console.log(`Attempt ${attempts} of ${maxAttempts}`);
 
-    votingResults.forEach((result) => {
-      const rawText = result.response.text;
+    try {
+      const votingResults = await conclave.askMembers(votingPrompt, instructions);
 
-      console.log("--------------------------", result.name);
-      console.log(JSON.stringify(rawText));
+      const totalVotes: Record<string, number> = {};
+      const rawResults: Array<ConclaveReponseWithJson> = [];
+      let invalidVotes = false;
 
-      const voteResponse = JSON.parse(rawText) as VotingResponse;
+      for (const result of votingResults) {
+        const rawText = result.response.text;
+        console.log("--------------------------", result.name);
+        console.log(JSON.stringify(rawText));
 
-      console.log(`Voting result from ${result.name}:`);
-      console.log("---");
-      console.log("---");
-      console.log(
-        Object.entries(voteResponse.votes)
-          .map(([version, votes]) => `Version ${version}: ${votes}`)
-          .join("\n"),
-      );
-      console.log("---");
-      console.log("---");
-      console.log(voteResponse.human_readable);
-      console.log("--------------------------");
+        const voteResponse = JSON.parse(fixMalformedJson(rawText)) as VotingResponse;
+        rawResults.push({ ...result, fullJsonResponse: voteResponse });
 
-      if (!validateVotes(voteResponse.votes, totalVotePoints)) {
-        console.error(
-          `Invalid vote from ${result.name}: Total votes do not add up to ${totalVotePoints}`,
+        console.log(`Voting result from ${result.name}:`);
+        console.log("---");
+        console.log(
+          Object.entries(voteResponse.votes)
+            .map(([version, votes]) => `Version ${version}: ${votes}`)
+            .join("\n"),
         );
-        throw new Error(
-          `Invalid vote from ${result.name}: Total votes do not add up to ${totalVotePoints}`,
-        );
+        console.log("---");
+        console.log(voteResponse.explanation);
+        console.log("--------------------------");
+
+        if (!validateVotes(voteResponse.votes, totalVotePoints)) {
+          console.error(
+            `Invalid vote from ${result.name}: Total votes do not add up to ${totalVotePoints}`,
+          );
+          invalidVotes = true;
+          break;
+        }
+
+        Object.entries(voteResponse.votes).forEach(([version, votes]) => {
+          totalVotes[version] = (totalVotes[version] ?? 0) + votes;
+        });
       }
 
-      Object.entries(voteResponse.votes).forEach(([version, votes]) => {
-        totalVotes[version] = (totalVotes[version] ?? 0) + votes;
-      });
+      if (invalidVotes) {
+        console.log(`Invalid votes detected. Retrying...`);
+        continue;
+      }
 
-      console.log("--------------------------");
-    });
+      const winningVersion = Object.entries(totalVotes).reduce((a, b) =>
+        totalVotes[a[0]] > totalVotes[b[0]] ? a : b,
+      )[0];
 
-    const winningVersion = Object.entries(totalVotes).reduce((a, b) =>
-      totalVotes[a[0]] > totalVotes[b[0]] ? a : b,
-    )[0];
+      const selectedText =
+        winningVersion === "0" ? ocrResult : cleanupResults[parseInt(winningVersion) - 1];
 
-    // Return the winning version
-    if (winningVersion === "0") {
-      return ocrResult;
-    } else {
-      return cleanupResults[parseInt(winningVersion) - 1];
+      const votingData: VotingStageData = {
+        prompts: {
+          instructions: instructions,
+          user: votingPrompt,
+        },
+        rawResults: rawResults,
+        totalVotes: totalVotes,
+        selectedText: selectedText,
+      };
+
+      storage.addVotingStage(votingData);
+
+      return selectedText;
+    } catch (error) {
+      console.error(`Error in voting stage (Attempt ${attempts}):`, error);
+      if (attempts === maxAttempts) {
+        throw error;
+      }
     }
-  } catch (error) {
-    console.error("Error in voting stage:", error);
-    throw error;
   }
+
+  throw new Error(`Failed to complete voting stage after ${maxAttempts} attempts`);
 }

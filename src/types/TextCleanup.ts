@@ -4,7 +4,7 @@ interface OkResponse {
   status: "OK";
 
   /** A human-readable explanation of your decision. */
-  human_readable: string;
+  explanation: string;
 }
 
 /** Received when the text requires corrections. */
@@ -20,7 +20,7 @@ interface KoResponse {
   correctedText: string;
 
   /** A human-readable explanation of your decision. */
-  human_readable: string;
+  explanation: string;
 }
 
 export type TextCleanupResponse = OkResponse | KoResponse;

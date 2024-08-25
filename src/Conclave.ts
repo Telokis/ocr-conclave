@@ -4,6 +4,11 @@ import { GPTChat } from "./chats/gpt";
 import { ConclaveMemberConfig } from "./config";
 import { ConclaveMember, ConclaveMemberMessageResponse } from "./types/ConclaveMember";
 
+export interface ConclaveResponse {
+  name: string;
+  response: ConclaveMemberMessageResponse;
+}
+
 export default class Conclave {
   private members: ConclaveMember[];
 
@@ -22,10 +27,7 @@ export default class Conclave {
     });
   }
 
-  askMembers(
-    userMessage: string,
-    instructions: string,
-  ): Promise<Array<{ name: string; response: ConclaveMemberMessageResponse }>> {
+  askMembers(userMessage: string, instructions: string): Promise<Array<ConclaveResponse>> {
     return Promise.all(
       this.members.map(async (member) => {
         try {

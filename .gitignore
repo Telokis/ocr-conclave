@@ -18,6 +18,8 @@ yarn-error.log*
 /.pnp
 .pnp.js
 google_cloud_credentials.json
+google_drive_oauth.json
+token.json
 data
 # Runtime data
 pids

@@ -7,5 +7,5 @@ export interface VotingResponse {
   votes: Record<string, number>;
 
   /** A human readable string to justify your vote. */
-  human_readable: string;
+  explanation: string;
 }

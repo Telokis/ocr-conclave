@@ -3,7 +3,6 @@ import type { protos } from "@google-cloud/documentai";
 import { readFile } from "node:fs/promises";
 import { PROJECT_ID, LOCATION, PROCESSOR_ID, DEFAULT_LANGUAGE } from "./env";
 import { getMimeType } from "./mimeUtil";
-import { Cache } from "./Cache";
 import sharp from "sharp";
 
 // Initialize the client
@@ -17,13 +16,8 @@ const name = `projects/${PROJECT_ID}/locations/${LOCATION}/processors/${PROCESSO
 
 export async function ocr(
   filePath: string,
-  cacheSubDir: string,
   languageHint: string | undefined = DEFAULT_LANGUAGE,
-): Promise<protos.google.cloud.documentai.v1.IProcessResponse> {
-  if (Cache.has(filePath, cacheSubDir)) {
-    return Cache.get(filePath, cacheSubDir);
-  }
-
+): Promise<[protos.google.cloud.documentai.v1.IProcessResponse, Buffer]> {
   // Read the file into memory
   let imageFile = await readFile(filePath);
 
@@ -60,7 +54,5 @@ export async function ocr(
 
   const [result] = await client.processDocument(request);
 
-  Cache.set(filePath, cacheSubDir, result, imageFile);
-
-  return result;
+  return [result, imageFile];
 }

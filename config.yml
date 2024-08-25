@@ -2,8 +2,11 @@ input:
   root: "{{ROOT_DIR}}/data/Nuit des rois"
   glob: "**/*.jpg"
 
-cache:
-  root_dir: "{{ROOT_DIR}}/data/cache"
+output:
+  local_file: "{{ROOT_DIR}}/data/full.txt"
+
+storage:
+  root_dir: "{{ROOT_DIR}}/data/storage"
 
 stagesSettings:
   vars:
@@ -40,6 +43,7 @@ stagesSettings:
         - Le texte original peut contenir des annotations manuscrites qui doivent être supprimées.
         - Le texte original contient parfois des annotations imprimées en bas de page pour donner des références historiques ; elles doivent être supprimées.
         - Certaines pages sont un peu transparentes et le texte qui est derrière perturbe l'OCR.
+        - Le texte généré ne doit strictement jamais contenir la page précédente, cela causerait un doublon. Seul le texte fourni par l'utilisateur est à reformater.
       Exemples de formatage :
         1. Vers :
            [char]VIOLA[/char]
@@ -66,8 +70,8 @@ stagesSettings:
           /** Indicates that the original text is fine. */
           status: "OK";
 
-          /** A human-readable explanation of your decision. */
-          human_readable: string;
+          /** An explanation of your decision. */
+          explanation: string;
         }
 
         /** Received when the text requires corrections. */
@@ -82,8 +86,8 @@ stagesSettings:
           */
           correctedText: string;
 
-          /** A human-readable explanation of your decision. */
-          human_readable: string;
+          /** An explanation of your decision. */
+          explanation: string;
         }
 
         export type TextCleanupResponse = OkResponse | KoResponse;
@@ -91,21 +95,21 @@ stagesSettings:
       Exemple de réponse valide si le texte est correct :
       {
         "status": "OK",
-        "human_readable": "Le texte est correctement formaté et ne nécessite aucune correction. Toutes les balises BBCode sont bien placées, la ponctuation est correcte, et le style est cohérent."
+        "explanation": "Le texte est correctement formaté et ne nécessite aucune correction. Toutes les balises BBCode sont bien placées, la ponctuation est correcte, et le style est cohérent."
       }
 
       Exemple de réponse valide si le texte nécessite des corrections :
       {
         "status": "KO",
         "correctedText": "[char]VIOLA[/char]\nSi je vous aime, hélas ! c'est malgré moi, seigneur ;\nVous m'avez fait venir pour vous parler d'Olivia.",
-        "human_readable": "Le texte original contenait des erreurs de formatage. J'ai corrigé les balises [char], ajouté les sauts de ligne nécessaires pour les vers, et vérifié la ponctuation. La version corrigée respecte maintenant toutes les règles de formatage spécifiées."
+        "explanation": "Le texte original contenait des erreurs de formatage. J'ai corrigé les balises [char], ajouté les sauts de ligne nécessaires pour les vers, et vérifié la ponctuation. La version corrigée respecte maintenant toutes les règles de formatage spécifiées."
       }
 
       Assurez-vous que :
-      1. Votre réponse entière est un objet JSON valide.
+      1. Votre réponse entière est un objet JSON valide. Les \n doivent être correctement escaped dans les strings.
       2. Le champ "status" est soit "OK" soit "KO".
       3. Le champ "correctedText" n'est présent que si le status est "KO".
-      4. Le champ "human_readable" contient toujours une explication détaillée de votre décision, qu'il y ait eu des corrections ou non.
+      4. Le champ "explanation" contient toujours une explication détaillée et complète de votre décision, qu'il y ait eu des corrections ou non.
       5. Si des corrections sont apportées, le texte corrigé doit être intégral et correctement formaté.
 
       N'ajoutez pas d'explications supplémentaires en dehors de l'objet JSON.
@@ -132,6 +136,7 @@ stagesSettings:
         - Formatage approprié (utilisation correcte des balises BBCode)
         - Cohérence du style et de la ponctuation
         - Respect des règles spécifiques pour les vers et la prose
+        - Stricte interdiction de répéter le texte de la page précédente.
 
       Processus de vote :
       1. Lisez attentivement chaque version du texte.
@@ -149,7 +154,7 @@ stagesSettings:
         votes: Record<string, number>;
 
         /** A human readable string to justify your vote. */
-        human_readable: string;
+        explanation: string;
       }
 
       Exemple de réponse valide :
@@ -159,18 +164,20 @@ stagesSettings:
           "1": {{VOTING_POINTS}},
           "2": 0
         },
-        "human_readable": "La version 1 est la plus fidèle au texte original tout en corrigeant efficacement les erreurs d'OCR. La version 2 a raté des erreurs OCR majeures. La version 0 contient trop d'erreurs pour être considérée comme la meilleure option."
+        "explanation": "La version 1 est la plus fidèle au texte original tout en corrigeant efficacement les erreurs d'OCR. La version 2 a raté des erreurs OCR majeures. La version 0 contient trop d'erreurs pour être considérée comme la meilleure option."
       }
 
       Assurez-vous que :
       1. La somme des points attribués est exactement égale à {{VOTING_POINTS}}.
       2. Chaque version (de 0 à N) a une entrée dans l'objet "votes".
-      3. La justification dans "human_readable" est détaillée et explique clairement votre raisonnement.
+      3. La justification dans "explanation" est détaillée et explique clairement votre raisonnement.
       4. Aucune version n'a le même nombre de points qu'une autre. Une hierarchie doit être évidente.
+      5. Une version qui contient la page précédente reçoit 0 points.
 
       Ci-dessous, les instructions de nettoyage de texte pour référence.
       Ces instructions vous aideront à comprendre les critères spécifiques utilisés pour nettoyer et formater le texte.
       {{BASIC_TEXT_CLEANUP_INSTRUCTIONS}}
+      {{PREVIOUS_PAGE_EXAMPLE}}
 
 conclave:
   - type: "claude"

@@ -28,7 +28,13 @@ export interface Config {
     root: string;
     glob: string;
   };
+  output: {
+    local_file: string;
+  };
   cache: {
+    root_dir: string;
+  };
+  storage: {
     root_dir: string;
   };
   stagesSettings: StagesSettings;
@@ -45,6 +51,6 @@ const config: Config = YAML.parse(rawConfigWithRootDir);
 const configWithoutRootDir = YAML.parse(rawConfig);
 const configHash = md5Hash(JSON.stringify(configWithoutRootDir));
 
-export { configHash, configWithoutRootDir };
+export { configHash, configWithoutRootDir, ROOT_DIR };
 
 export default config;
